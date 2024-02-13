@@ -119,6 +119,7 @@ class I3TruthExtractor(I3Extractor):
             "L5_oscNext_bool": padding_value,
             "L6_oscNext_bool": padding_value,
             "L7_oscNext_bool": padding_value,
+            "oneweight": padding_value,
         }
 
         # Only InIceSplit P frames contain ML appropriate I3RecoPulseSeriesMap etc.
@@ -175,6 +176,13 @@ class I3TruthExtractor(I3Extractor):
                 frame, sim_type
             )
 
+            mcwd = frame['I3MCWeightDict']
+            oneweight = mcwd['OneWeight'] / mcwd['NEvents']
+            if frame['I3MCTree'][0].pdg_encoding < 0:
+                oneweight /= 0.3
+            else:
+                 oneweight /= 0.7
+
             try:
                 (
                     energy_track,
@@ -205,6 +213,7 @@ class I3TruthExtractor(I3Extractor):
                     "energy_track": energy_track,
                     "energy_cascade": energy_cascade,
                     "inelasticity": inelasticity,
+                    "oneweight": oneweight,
                 }
             )
             if abs(output["pid"]) == 13:
