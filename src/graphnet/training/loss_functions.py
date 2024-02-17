@@ -443,3 +443,32 @@ class VonMisesFisher3DLoss(VonMisesFisherLoss):
         kappa = prediction[:, 3]
         p = kappa.unsqueeze(1) * prediction[:, [0, 1, 2]]
         return self._evaluate(p, target)
+
+class VonMisesFisher3DLossRescaledKappa(VonMisesFisherLoss):
+    """von Mises-Fisher loss function vectors in the 3D plane with kappa rescaled to arctangent kappa."""
+
+    def _forward(self, prediction: Tensor, target: Tensor) -> Tensor:
+        """Calculate von Mises-Fisher loss for a direction in the 3D.
+
+        Args:
+            prediction: Output of the model. Must have shape [N, 4] where
+                columns 0, 1, 2 are predictions of `direction` and last column
+                is an estimate of `kappa`.
+            target: Target tensor, extracted from graph object.
+
+        Returns:
+            Elementwise von Mises-Fisher loss terms. Shape [N,]
+        """
+        target = target.reshape(-1, 3)
+        # Check(s)
+        assert prediction.dim() == 2 and prediction.size()[1] == 4
+        assert target.dim() == 2
+        assert prediction.size()[0] == target.size()[0]
+
+        kappa = prediction[:, 3]
+        rescaled_kappa = np.tan(kappa.unsqueeze(1))
+        p = rescaled_kappa * prediction[:, [0, 1, 2]]
+        if np.abs(rescaled_kappa) > np.pi/2:
+            return 0
+        else:
+            return self._evaluate(p, target)
