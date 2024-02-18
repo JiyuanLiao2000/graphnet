@@ -263,5 +263,7 @@ class DynEdgeTITO(GNN):
 
         # Read-out
         x = self._readout(x)
-
-        return x
+        direction_components, direction_kappa = x[:, :-1], x[:, -1]
+        direction_kappa = torch.sigmoid(direction_kappa)  # 确保kappa值在0到1之间
+        output = torch.cat((direction_components, direction_kappa.unsqueeze(-1)), dim=1)
+        return output
