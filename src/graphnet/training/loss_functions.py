@@ -464,11 +464,11 @@ class VonMisesFisher3DLossRescaledKappa(VonMisesFisherLoss):
         assert prediction.dim() == 2 and prediction.size()[1] == 4
         assert target.dim() == 2
         assert prediction.size()[0] == target.size()[0]
+        
+        # Map ita to kappa within the specified range
 
-        kappa = prediction[:, 3]
-        rescaled_kappa = np.tan(kappa.unsqueeze(1))
-        p = rescaled_kappa * prediction[:, [0, 1, 2]]
-        if np.abs(rescaled_kappa) > np.pi/2:
-            return 0
-        else:
-            return self._evaluate(p, target)
+        ita = prediction[:, 3]
+        kappa_min, kappa_max = 0.01, 6400
+        kappa = ita * (kappa_max - kappa_min) + kappa_min
+        p =  kappa.unsqueeze(1) * prediction[:, [0, 1, 2]]
+        return self._evaluate(p, target)
