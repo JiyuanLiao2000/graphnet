@@ -468,7 +468,6 @@ class VonMisesFisher3DLossRescaledKappa(VonMisesFisherLoss):
         # Map ita to kappa within the specified range
 
         ita = prediction[:, 3]
-        kappa_min, kappa_max = 0.01, 6400
-        kappa = ita * (kappa_max - kappa_min) + kappa_min
+        kappa = torch.tan(ita * (torch.pi / 2))  # Non-linear mapping from ita to kappa
         p =  kappa.unsqueeze(1) * prediction[:, [0, 1, 2]]
         return self._evaluate(p, target)
