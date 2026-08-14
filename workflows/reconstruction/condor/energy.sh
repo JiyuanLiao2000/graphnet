@@ -26,6 +26,10 @@ fi
 unset PYTHONHOME
 unset PYTHONPATH
 
+# HTCondor may provide a minimal PATH. micromamba run searches PATH for bash
+# and then sh when it creates its activation wrapper script.
+export PATH="/usr/bin:/bin:${PATH:-}"
+
 if [ ! -x "$MAMBA" ]; then
     echo "micromamba is not executable: $MAMBA" >&2
     exit 1

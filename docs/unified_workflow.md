@@ -249,6 +249,13 @@ export PYTHONPATH="${GRAPHNET_ROOT}/src"
 This resolved the observed SQLite/ICU startup failure caused by the system
 `libstdc++` being too old for the environment's ICU library.
 
+HTCondor may also start a job with a minimal `PATH`. `micromamba run` locates
+`bash` or `sh` through `PATH` when it builds its activation wrapper. The
+reconstruction wrapper therefore prepends `/usr/bin:/bin` before invoking
+micromamba. Without this setting, libmamba can emit
+`Failed to find a shell to run the script with` even though its fallback may
+allow the payload to continue.
+
 ## Madison HTCondor GPU behavior
 
 The Madison GPU pool currently includes GTX 980, GTX 1080, and A40 nodes. The
@@ -310,15 +317,16 @@ Madison validation currently stands at:
 | Energy reconstruction on converted Madison DB | Passed |
 | Track/cascade reconstruction on Madison | Pending |
 | Direction/vertex reconstruction on Madison | Pending |
-| Non-interactive Condor reconstruction wrapper | Pending |
+| Energy reconstruction in a non-interactive Condor job | Passed |
 
 ## Next milestone
 
-The Energy wrapper and submit file are now tracked under
-`workflows/reconstruction/condor/`. The next milestone is to run them as a
-non-interactive HTCondor smoke job and validate the transferred logs and shared
-CSV output. Only after that job succeeds should the same environment and Condor
-contract be added for Track/Cascade and Direction/Vertex reconstruction.
+The Energy wrapper and submit file under
+`workflows/reconstruction/condor/` have passed a non-interactive HTCondor
+smoke job, including transferred logs and the shared CSV output. The next
+milestone is to add and validate the Track/Cascade Condor workflow, followed by
+Direction/Vertex, using the same environment isolation, C++ runtime, shell
+`PATH`, GPU, CPU-worker, file-transfer, and shared-storage contract.
 
 The migration is complete only after this chain runs successfully on
 Madison/HTCondor:
