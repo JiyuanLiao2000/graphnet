@@ -14,7 +14,7 @@ output_dir = /data/user/$(submit_user)/graphnet_workflow/sqlite
 pulse_key = SplitRTCleanedInIcePulses
 manifest = manifest.txt
 
-arguments = "exe.sh" "$(gcd_path)" "$(i3_path)" "$(output_dir)" "$(pulse_key)" "$(graphnet_root)"
+arguments = exe.sh $(gcd_path) $(i3_path) $(output_dir) $(pulse_key) $(graphnet_root)
 
 request_memory = 8GB
 request_cpus = 1
