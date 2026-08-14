@@ -1,0 +1,37 @@
+# Parameterized Madison HTCondor submission layer for the validated conversion
+# baseline. Copy this file together with workflows/conversion/exe.sh and
+# workflows/conversion/conversion.py to a submit directory under /scratch/$USER.
+#
+# The defaults assume the repository layout documented in the end-to-end guide.
+# Override any macro with condor_submit -append when using a different layout.
+
+universe = vanilla
+executable = exe.sh
+
+submit_user = $ENV(USER)
+graphnet_root = /data/user/$(submit_user)/software/graphnet_unified
+output_dir = /data/user/$(submit_user)/graphnet_workflow/sqlite
+pulse_key = SplitRTCleanedInIcePulses
+manifest = manifest.txt
+
+arguments = "$(gcd_path)" "$(i3_path)" "$(output_dir)" "$(pulse_key)" "$(graphnet_root)"
+
+request_memory = 8GB
+request_cpus = 1
+
+transfer_executable = true
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = conversion.py
+
+output = conversion.$(ClusterId).$(ProcId).out
+error = conversion.$(ClusterId).$(ProcId).err
+log = conversion.$(ClusterId).log
+
+requirements = HAS_CVMFS_icecube_opensciencegrid_org && GLIDEIN_Site =!= "Cedar"
+max_retries = 0
++osg_site_blacklist = "Cedar"
+
+# The manifest contains two whitespace-separated columns:
+#   <GCD path> <I3 path>
+queue gcd_path, i3_path from $(manifest)
