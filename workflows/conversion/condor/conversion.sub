@@ -12,7 +12,7 @@ submit_user = $ENV(USER)
 graphnet_root = /data/user/$(submit_user)/software/graphnet_unified
 output_dir = /data/user/$(submit_user)/graphnet_workflow/sqlite
 pulse_key = SplitRTCleanedInIcePulses
-manifest = manifest.txt
+input_manifest = manifest.txt
 
 arguments = exe.sh $(gcd_path) $(i3_path) $(output_dir) $(pulse_key) $(graphnet_root)
 
@@ -34,4 +34,4 @@ max_retries = 0
 
 # The manifest contains two whitespace-separated columns:
 #   <GCD path> <I3 path>
-queue gcd_path, i3_path from $(manifest)
+queue gcd_path, i3_path from $(input_manifest)
