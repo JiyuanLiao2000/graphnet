@@ -6,6 +6,7 @@ GCD_INPUT=$1
 I3_FILE=$2
 OUT_DIR=$3
 PULSE_KEY=$4
+GRAPHNET_ROOT=$5
 
 # Prepare the GCD input in a job-local temporary directory.
 # This keeps extracted files out of the working directory.
@@ -31,11 +32,12 @@ echo "Target I3 File : $I3_FILE"
 echo "Using GCD File : $GCD_FILE"
 echo "Output Dir     : $OUT_DIR"
 echo "Pulse Key      : $PULSE_KEY"
+echo "GraphNeT Root  : $GRAPHNET_ROOT"
 echo "=================================================="
 
 # Configure the IceCube and GraphNeT environments.
 eval $(/cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/setup.sh)
-export PYTHONPATH="/data/user/jliao/software/my_custom_graphnet/src:$PYTHONPATH"
+export PYTHONPATH="${GRAPHNET_ROOT}/src:$PYTHONPATH"
 
 # Run conversion.py from the parent of the temporary directory.
 echo "Launching GraphNeT conversion..."

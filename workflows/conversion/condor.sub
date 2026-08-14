@@ -3,9 +3,10 @@ executable = exe.sh
 
 # Pulse map for this dataset
 pulse_key = SplitRTCleanedInIcePulses
+graphnet_root = /data/user/jliao/software/graphnet_unified
 
-# Pass the GCD path, I3 path, output directory, and pulse key to exe.sh.
-arguments = $(gcd_path) $(i3_path) /data/user/jliao/TANGO_check_2026/fifth_batch/ $(pulse_key)
+# Pass the GCD path, I3 path, output directory, pulse key, and GraphNeT checkout to exe.sh.
+arguments = $(gcd_path) $(i3_path) /data/user/jliao/TANGO_check_2026/fifth_batch/ $(pulse_key) $(graphnet_root)
 
 # Optional Singularity image.
 #+SingularityImage="/data/user/jliao/software/icetray-v1.8.1-cuda11.8-cudnn8-graphnet-ubuntu22.04-2024-02-07"
