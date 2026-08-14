@@ -1,0 +1,31 @@
+universe = vanilla
+
+executable = direction_vertex.sh
+
+input_dir = /data/user/jliao/graphnet_unified_smoke_0414/output
+output_dir = /data/user/jliao/graphnet_unified_smoke_0414/reconstruction_direction_vertex_condor
+model_path = /data/user/jliao/software/graphnet_unified/models/direction_vertex/direction_vertex_model.pth
+pulsemap = SplitRTCleanedInIcePulses
+graphnet_root = /data/user/jliao/software/graphnet_unified
+env_prefix = /data/user/jliao/envs/micromamba/envs/graphnet-reco
+mamba = /data/user/jliao/software/micromamba/bin/micromamba
+num_workers = 4
+
+arguments = $(input_dir) $(output_dir) $(model_path) $(pulsemap) $(graphnet_root) $(env_prefix) $(mamba) $(num_workers)
+
+request_cpus = $(num_workers)
+request_memory = 12GB
+request_gpus = 1
+
+gpus_minimum_capability = 6.1
+gpus_minimum_memory = 6GB
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = direction_vertex.sh
+
+output = direction_vertex.$(ClusterId).$(ProcId).out
+error = direction_vertex.$(ClusterId).$(ProcId).err
+log = direction_vertex.$(ClusterId).log
+
+queue

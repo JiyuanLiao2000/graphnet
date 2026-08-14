@@ -293,6 +293,12 @@ valid for this GraphNeT DataLoader because its configured `prefetch_factor`
 requires multiprocessing. The Condor wrapper rejects zero before starting
 Python so the failure is immediate and explicit.
 
+The initial Track/Cascade and Direction/Vertex batch tests are intentionally
+submitted concurrently as independent jobs. Each job uses
+`num_workers=4`, `request_cpus=4`, and `request_memory=12GB`, with separate
+Condor logs and shared output directories. This exercises production-like data
+loading while preserving the one-to-one CPU-worker accounting rule.
+
 ## Reconstruction model verification
 
 See `models/MODELS.md`. The three deployment models are tracked with SHA256
@@ -315,18 +321,19 @@ Madison validation currently stands at:
 | Track/cascade model load | Passed |
 | Direction/vertex model load | Passed |
 | Energy reconstruction on converted Madison DB | Passed |
-| Track/cascade reconstruction on Madison | Pending |
-| Direction/vertex reconstruction on Madison | Pending |
+| Track/cascade reconstruction in a non-interactive Condor job | Pending |
+| Direction/vertex reconstruction in a non-interactive Condor job | Pending |
 | Energy reconstruction in a non-interactive Condor job | Passed |
 
 ## Next milestone
 
 The Energy wrapper and submit file under
 `workflows/reconstruction/condor/` have passed a non-interactive HTCondor
-smoke job, including transferred logs and the shared CSV output. The next
-milestone is to add and validate the Track/Cascade Condor workflow, followed by
-Direction/Vertex, using the same environment isolation, C++ runtime, shell
-`PATH`, GPU, CPU-worker, file-transfer, and shared-storage contract.
+smoke job, including transferred logs and the shared CSV output. Track/Cascade
+and Direction/Vertex wrappers are now tracked with the same environment
+isolation, C++ runtime, shell `PATH`, GPU, CPU-worker, file-transfer, and
+shared-storage contract. Their next milestone is a concurrent two-job Condor
+smoke test followed by independent CSV and log validation.
 
 The migration is complete only after this chain runs successfully on
 Madison/HTCondor:
