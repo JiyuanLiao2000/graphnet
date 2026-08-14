@@ -4,7 +4,7 @@ These methods are used to open and apply `Extractors` to experiment-specific
 file formats.
 """
 
-from typing import List, Union, OrderedDict, Any, Dict
+from typing import List, Union, OrderedDict, Any, Dict, TYPE_CHECKING
 from abc import abstractmethod, ABC
 import glob
 import os
@@ -16,7 +16,8 @@ from graphnet.data.dataclasses import I3FileSet
 from graphnet.data.extractors.extractor import Extractor
 from graphnet.data.extractors.icecube import I3Extractor
 from graphnet.data.extractors.internal import ParquetExtractor
-from graphnet.data.extractors.liquido import H5Extractor
+if TYPE_CHECKING:
+    from graphnet.data.extractors.liquido import H5Extractor
 from graphnet.data.extractors.prometheus import PrometheusExtractor
 
 
@@ -98,7 +99,7 @@ class GraphNeTFileReader(Logger, ABC):
             List[Extractor],
             List[I3Extractor],
             List[ParquetExtractor],
-            List[H5Extractor],
+            List["H5Extractor"],
             List[PrometheusExtractor],
         ],
     ) -> None:
@@ -119,7 +120,7 @@ class GraphNeTFileReader(Logger, ABC):
             List[Extractor],
             List[I3Extractor],
             List[ParquetExtractor],
-            List[H5Extractor],
+            List["H5Extractor"],
             List[PrometheusExtractor],
         ],
     ) -> None:

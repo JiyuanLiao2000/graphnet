@@ -1,5 +1,5 @@
 """Contains `DataConverter`."""
-from typing import List, Union, OrderedDict, Dict, Tuple, Any, Optional, Type
+from typing import List, Union, OrderedDict, Dict, Tuple, Any, Optional, Type, TYPE_CHECKING
 from abc import abstractmethod, ABC
 
 from tqdm import tqdm
@@ -17,7 +17,8 @@ from .readers.graphnet_file_reader import GraphNeTFileReader
 from .writers.graphnet_writer import GraphNeTWriter
 from .extractors import Extractor
 from .extractors.icecube import I3Extractor
-from .extractors.liquido import H5Extractor
+if TYPE_CHECKING:
+    from .extractors.liquido import H5Extractor
 from .extractors.internal import ParquetExtractor
 from .extractors.prometheus import PrometheusExtractor
 
@@ -47,7 +48,7 @@ class DataConverter(ABC, Logger):
             List[Extractor],
             List[I3Extractor],
             List[ParquetExtractor],
-            List[H5Extractor],
+            List["H5Extractor"],
             List[PrometheusExtractor],
         ],
         index_column: str = "event_no",
