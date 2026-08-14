@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.5 seconds
-Output:
 # Madison HTCondor reconstruction
 
 These files run Energy, Track/Cascade, and Direction/Vertex reconstruction

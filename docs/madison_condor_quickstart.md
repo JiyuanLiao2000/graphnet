@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.5 seconds
-Output:
 # Madison HTCondor Reconstruction Quickstart
 
 This is the supported onboarding path for running the repository's Energy,
