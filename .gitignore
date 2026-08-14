@@ -147,6 +147,9 @@ data/tests/output/
 data/examples/output/
 **.png
 **.pth
+
+# Keep deployment models used by the unified reconstruction workflows
+!models/**/*.pth
 **.db
 **.parquet
 # Exception to pre-trained folders; here we want all .pth files 

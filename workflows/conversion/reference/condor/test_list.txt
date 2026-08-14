@@ -1,0 +1,1 @@
+/data/exp/IceCube/2026/internal-system/sps-gcd/0406/PFGCD_Run00142391_Subrun00000000.flat.tar /data/user/mlarson/icetray/scripts/upgrade_lid/output/Greco_0406_Run00142391.i3.zst

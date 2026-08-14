@@ -1,0 +1,38 @@
+# our job.submit file
+executable = exe.sh
+
+# Pulse map for this dataset
+pulse_key = SplitRTCleanedInIcePulses
+
+# 将文件列表中的两列变量传递给 exe.sh，并硬编码输出目录
+arguments = $(gcd_path) $(i3_path) /data/user/jliao/TANGO_check_2026/fifth_batch/ $(pulse_key)
+
+# 指定 Singularity 镜像环境
+#+SingularityImage="/data/user/jliao/software/icetray-v1.8.1-cuda11.8-cudnn8-graphnet-ubuntu22.04-2024-02-07"
+
+# 因为每个任务只处理一个文件，大幅降低资源请求以实现集群上的“秒调度”
+request_memory = 8GB
+request_cpus = 1
+
+transfer_executable = true
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+# 务必把 conversion.py 传进计算节点
+transfer_input_files = conversion.py
+
+# 使用你在 /scratch/jliao/conversion 下新建的 results 文件夹
+# 加上 $(Process) 变量，确保这 452 个任务都有自己独立的日志，不会互相覆盖
+log = /scratch/jliao/conversion/results/job_$(Cluster)_$(Process).log
+output = /scratch/jliao/conversion/results/job_$(Cluster)_$(Process).out
+error = /scratch/jliao/conversion/results/job_$(Cluster)_$(Process).err
+
+
+#Requirements = HAS_CVMFS_icecube_opensciencegrid_org && (OpSysMajorVer =?= 7) && GLIDEIN_Site =!= "Cedar"
+Requirements = HAS_CVMFS_icecube_opensciencegrid_org && GLIDEIN_Site =!= "Cedar"
+max_retries = 0
++osg_site_blacklist="Cedar"
+
+# 魔法发生的地方：按行读取 txt 文件，按空格分割赋给变量 gcd_path 和 i3_path
+queue gcd_path, i3_path from test_list.txt
+#queue gcd_path, i3_path from matched_file_list.txt

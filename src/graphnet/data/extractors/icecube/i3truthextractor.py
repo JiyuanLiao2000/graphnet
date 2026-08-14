@@ -119,6 +119,11 @@ class I3TruthExtractor(I3Extractor):
             "L5_oscNext_bool": padding_value,
             "L6_oscNext_bool": padding_value,
             "L7_oscNext_bool": padding_value,
+            "oneweight": padding_value,
+            "true_length": padding_value,
+            "reconstructed_length": padding_value,
+            "reconstructed_energy": padding_value,
+            "deltallh": padding_value,
         }
 
         # Only InIceSplit P frames contain ML appropriate I3RecoPulseSeriesMap etc.
@@ -175,6 +180,35 @@ class I3TruthExtractor(I3Extractor):
                 frame, sim_type
             )
 
+            mcwd = frame["I3MCWeightDict"]
+            oneweight = mcwd["OneWeight"] / mcwd["NEvents"]
+            if frame["I3MCTree"][0].pdg_encoding < 0:
+                oneweight /= 0.3
+            else:
+                oneweight /= 0.7
+
+            length = -1
+            mctreeframe = frame["I3MCTree"]
+            muon = dataclasses.get_most_energetic_muon(mctreeframe)
+            if muon:
+                length = muon.length
+
+            reconstructed_length = padding_value
+            reconstructed_energy = padding_value
+            deltallh = padding_value
+
+            if "Pegleg_Fit_Nestle" in frame:
+                reconstructed_length = frame["Pegleg_Fit_Nestle"].length
+                reconstructed_energy = frame["Pegleg_Fit_Nestle"].energy
+
+            if (
+                "Monopod_bestFitParams" in frame
+                and "Pegleg_Fit_NestleFitParams" in frame
+            ):
+                monopodllh = frame["Monopod_bestFitParams"].rlogl
+                peglegllh = frame["Pegleg_Fit_NestleFitParams"].rlogl
+                deltallh = monopodllh - peglegllh
+
             try:
                 (
                     energy_track,
@@ -205,6 +239,11 @@ class I3TruthExtractor(I3Extractor):
                     "energy_track": energy_track,
                     "energy_cascade": energy_cascade,
                     "inelasticity": inelasticity,
+                    "oneweight": oneweight,
+                    "true_length": length,
+                    "reconstructed_length": reconstructed_length,
+                    "reconstructed_energy": reconstructed_energy,
+                    "deltallh": deltallh,
                 }
             )
             if abs(output["pid"]) == 13:
@@ -374,7 +413,7 @@ class I3TruthExtractor(I3Extractor):
             interaction_type = padding_value
 
         try:
-            elasticity = frame["I3GENIEResultDict"]["y"]
+            elasticity = -1
         except KeyError:
             elasticity = padding_value
 
