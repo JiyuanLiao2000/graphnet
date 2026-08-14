@@ -1,0 +1,6 @@
+name: graphnet-reco
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8.19
+  - pip
