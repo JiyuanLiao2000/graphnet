@@ -1,4 +1,4 @@
-"""Example of Batch Prediction Model with Test Valve."""
+"""Run batch direction and vertex prediction for SQLite inputs."""
 
 import os
 import glob
@@ -26,7 +26,7 @@ from graphnet.data.datamodule import GraphNeTDataModulecustom
 from graphnet.data.dataset.sqlite.sqlite_dataset import SQLiteDataset
 from graphnet.models import Model
 
-# Constants (保持原样，与你之前的物理特征完全一致)
+# Use the IceCube-86 feature and truth definitions expected by the model.
 features = FEATURES.ICECUBE86
 truth = TRUTH.ICECUBE86
 truth.append("oneweight")
@@ -45,14 +45,14 @@ def main(
     gpus: Optional[List[int]],
     batch_size: int,
     num_workers: int,
-    max_files: int,  # 🚰 新增的测试阀参数
+    max_files: int,  # Optional input-file limit.
 ) -> None:
 
     logger = Logger()
     logger.info(f"features: {features}")
     logger.info(f"truth: {truth}")
 
-    # 1. 静态配置与图定义 (维持不变)
+    # Configure the pulse map and data-loader parameters.
     config: Dict[str, Any] = {
         "pulsemap": pulsemap,
         "batch_size": batch_size,
@@ -67,7 +67,7 @@ def main(
         input_feature_names=features,
     )
 
-    # 2. Load Direction-Vertex model
+    # Load the configured direction/vertex model.
     logger.info(f"Loading Direction-Vertex model: {model_path}")
     model = Model.load(model_path)
     model.eval()
@@ -84,35 +84,34 @@ def main(
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # 3. 动态获取所有待处理的 .db 文件
+    # Discover input databases in a deterministic order.
     db_files = glob.glob(os.path.join(input_dir, "*.db"))
-    db_files.sort() # 排序确保每次测试抓到的都是固定的前几个文件
+    db_files.sort() # Keep limited runs reproducible.
 
     logger.info(f"Found {len(db_files)} databases in total.")
 
-    # --- 🚰 测试阀逻辑 ---
+    # Apply the optional database limit.
     if max_files > 0:
         db_files = db_files[:max_files]
         logger.info(f"🚰 TEST VALVE ACTIVE: Limiting processing to {len(db_files)} databases.")
     else:
         logger.info(f"🌊 FULL RUN ACTIVE: Processing all {len(db_files)} databases.")
 
-    # 4. [核心循环] 遍历每个 .db 文件
+    # Process each database independently.
     for db_path in db_files:
         db_name = os.path.basename(db_path).replace(".db", "")
         output_csv = os.path.join(output_dir, f"{db_name}_DV.csv")
 
-        # 智能断点续传：如果已经存在结果，跳过
+        # Skip databases that already have an output file.
         if os.path.exists(output_csv):
             logger.info(f"Skipping {db_name}, already processed.")
             continue
 
         logger.info(f"Processing: {db_name}")
 
-        # --- [聪明的手段] 瞬间提取所有的 event_no ---
+        # Read event identifiers directly from the truth table.
         try:
             with sqlite3.connect(db_path) as conn:
-                # 绕过庞大的 CSV 列表，直接从数据库内部榨取 event_no 列表
                 all_events = pd.read_sql(f"SELECT event_no FROM {truth_table}", conn)["event_no"].tolist()
         except Exception as e:
             logger.error(f"Failed to read {db_path}: {e}")
@@ -122,7 +121,7 @@ def main(
             logger.warning(f"No events found in {db_name}. Skipping.")
             continue
 
-        # --- 维持原样，安全骗过 DataModule ---
+        # Use a minimal training selection and all events for validation inference.
         data_module = GraphNeTDataModulecustom(
             dataset_reference=SQLiteDataset,
             dataset_args={
@@ -130,14 +129,14 @@ def main(
                 "pulsemaps": config["pulsemap"],
                 "truth": truth,
                 "features": features,
-                "path": [db_path],  # 每次只喂当前的 db
+                "path": [db_path],  # Process one database at a time.
                 "graph_definition": graph_definition
             },
             train_dataloader_kwargs={
                 "batch_size": config["batch_size"],
                 "num_workers": config["num_workers"],
             },
-            # 伪造一个极小的训练集应付检查，将全量事件推入验证集用于预测
+            # The training selection satisfies DataModule setup requirements.
             train_selections=[all_events[:2]],
             val_selections=[all_events],
             test_selection=[None],
@@ -148,12 +147,12 @@ def main(
                     key="joint_labels"
                 )
             },
-            train_val_split=[0.2, 0.8], # 已被显式 selections 覆盖，安全失效
+            train_val_split=[0.2, 0.8], # Explicit selections override this split.
         )
 
         validation_dataloader = data_module.val_dataloader
 
-        # 5. 执行极速预测
+        # Run inference.
         try:
             results = model.predict_as_dataframe(
                 validation_dataloader,
@@ -161,7 +160,7 @@ def main(
                 prediction_columns=prediction_columns,
                 gpus=gpus,
             )
-            # 6. 保存同名 CSV
+            # Save the database-specific prediction file.
             results.to_csv(output_csv, index=False)
             logger.info(f"Successfully saved {output_csv}")
         except Exception as e:
@@ -170,7 +169,7 @@ def main(
 if __name__ == "__main__":
     parser = ArgumentParser(description="Batch Inference with GraphNeT")
 
-    # 替换了原来的硬编码单文件路径
+    # Accept directories instead of a single hard-coded database path.
     parser.add_argument("--input-dir", required=True, help="Directory containing .db files")
     parser.add_argument("--output-dir", required=True, help="Directory to save .csv results")
     parser.add_argument("--model-path", required=True, help="Path to Direction-Vertex model.pth")
@@ -178,7 +177,7 @@ if __name__ == "__main__":
     parser.add_argument("--target", default="direction")
     parser.add_argument("--truth-table", default="truth")
 
-    # 🚰 注册测试阀参数：默认 -1 为全量运行
+    # A non-positive limit processes all available databases.
     parser.add_argument("--max-files", type=int, default=-1, help="Test valve: max number of .db files to process.")
 
     parser.with_standard_arguments(
@@ -198,5 +197,5 @@ if __name__ == "__main__":
         args.gpus,
         args.batch_size,
         args.num_workers,
-        args.max_files, # 传递给 main
+        args.max_files, # Pass the optional limit to main.
     )

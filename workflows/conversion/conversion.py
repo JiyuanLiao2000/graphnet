@@ -1,24 +1,24 @@
-"""Convert single I3-files to SQLite database using a temporary directory."""
+"""Convert one I3 file to an SQLite database via a temporary directory."""
 
 import sys
 import os
 
-# 1. 定义你的私有环境路径
+# Private Python environment used by the Madison conversion workflow.
 my_env_path = "/data/user/jliao/envs/mlarson_graphnet_env/lib/python3.12/site-packages"
 
-# 2. 如果路径已在列表中，先删掉它，再把它塞到绝对的第一位 (Index 0)
+# Give the private environment the highest import priority.
 if my_env_path in sys.path:
     sys.path.remove(my_env_path)
 sys.path.insert(0, my_env_path)
 
-# 3. 🔥 核心核武：如果内存里已经缓存了 numpy，强行把它踢出去！
+# Remove a previously imported NumPy module before re-importing it.
 if 'numpy' in sys.modules:
     del sys.modules['numpy']
 
-# 4. 现在重新导入，Python 将被迫去你的 Index 0 路径找全新的 1.26.4
+# Re-import NumPy from the highest-priority path.
 import numpy
 
-# --- 验证输出 ---
+# Report the NumPy installation used by the job.
 print(f"Internal Check - NumPy Location: {numpy.__file__}")
 print(f"Internal Check - NumPy Version: {numpy.__version__}")
 
@@ -50,7 +50,7 @@ def main_icecube86(input_i3_dir: str,
                                       gcd_rescue = gcd_rescue,
                                       num_workers = workers)
 
-    # 传入包含软链接的临时文件夹
+    # Convert the contents of the temporary input directory.
     converter(input_i3_dir)
 
 if __name__ == "__main__":
@@ -82,22 +82,22 @@ if __name__ == "__main__":
     os.makedirs(out_directory, exist_ok=True)
     num_workers = 1
 
-    # 核心修复：创建一个临时文件夹，并在其中为 i3 文件创建软链接
+    # Expose the input I3 file through an isolated temporary directory.
     with tempfile.TemporaryDirectory() as tmp_dir:
         print(f"Created temporary directory: {tmp_dir}", flush=True)
         symlink_path = os.path.join(tmp_dir, base_name)
 
-        # 创建软链接 (0耗时，不占空间)
+        # Create a symbolic link without copying the input file.
         os.symlink(i3_path, symlink_path)
         print(f"Created symlink for i3 file inside temp directory.", flush=True)
 
-        # 将这个临时文件夹传递给主函数
+        # Pass the temporary directory to the converter.
         main_icecube86(input_i3_dir = tmp_dir,
                        outdir = out_directory,
                        workers = num_workers,
                        gcd_rescue = gcd_path,
                        pulse_key = pulse_key)
 
-    # 退出 with 代码块时，tempfile 会自动销毁临时文件夹和软链接
+    # TemporaryDirectory removes the directory and symbolic link on exit.
 
     print("\nConversion successfully completed for:", db_name)

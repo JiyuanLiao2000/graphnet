@@ -1,15 +1,15 @@
 #!/bin/bash
-#SBATCH -J 2026_Pred_DV              # Job name (改成了 Test)
-#SBATCH -A gts-itaboada3        # Charge account
+#SBATCH -J 2026_Pred_DV              # Direction/vertex reconstruction job
+#SBATCH -A gts-itaboada3        # Slurm account
 #SBATCH -N 1
 #SBATCH --cpus-per-task=6
-#SBATCH --gres=gpu:rtx_6000:1              # Number of nodes and GPUs required
-#SBATCH -q inferno                     # QOS Name
-#SBATCH --mem-per-gpu=48G              # Memory per gpu
-#SBATCH --time=20:00:00                 # ⏳ 测试阶段只申请 1 小时足矣
-#SBATCH -o /storage/home/hcoda1/4/jliao74/r-itaboada3-0/jliao74/TestReco0/Reports/DV/Report-%j.out               # Combined output and error messages file
-#SBATCH --mail-type=BEGIN,END,FAIL     # Mail preferences
-#SBATCH --mail-user=jliao74@gatech.edu # e-mail address for notifications
+#SBATCH --gres=gpu:rtx_6000:1              # GPU allocation
+#SBATCH -q inferno                     # QoS
+#SBATCH --mem-per-gpu=48G              # Memory per GPU
+#SBATCH --time=20:00:00                 # Wall-time limit
+#SBATCH -o /storage/home/hcoda1/4/jliao74/r-itaboada3-0/jliao74/TestReco0/Reports/DV/Report-%j.out               # Combined stdout and stderr file
+#SBATCH --mail-type=BEGIN,END,FAIL     # Notification events
+#SBATCH --mail-user=jliao74@gatech.edu # Notification address
 
 REPO_ROOT="/storage/home/hcoda1/4/jliao74/GraphNeT/graphnet"
 cd "$REPO_ROOT"
@@ -22,7 +22,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 INPUT_DIR="/storage/home/hcoda1/4/jliao74/r-itaboada3-0/jliao74/TANGO_check_2026"
 OUTPUT_DIR="/storage/home/hcoda1/4/jliao74/r-itaboada3-0/jliao74/TestReco0/Results_DV"
 
-# 执行批量预测脚本
+# Run direction and vertex prediction on all databases.
 srun python workflows/reconstruction/direction_vertex.py \
     --input-dir "$INPUT_DIR" \
     --output-dir "$OUTPUT_DIR" \
@@ -30,4 +30,4 @@ srun python workflows/reconstruction/direction_vertex.py \
     --pulsemap SplitRTCleanedInIcePulses \
     --batch-size 10 \
     --num-workers 6 \
-    --max-files -1                      # 🚰 这里就是你的测试阀：只跑 3 个文件！
+    --max-files -1                      # Process all databases.

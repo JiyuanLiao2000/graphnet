@@ -1,11 +1,11 @@
-
 # Unified IceCube GraphNeT Workflow
 
 ## Goal
 
-Maintain one GraphNeT codebase and one reproducible workflow that can run the
-full reconstruction chain on Madison / HTCondor:
+Maintain one GraphNeT codebase and one reproducible workflow for the complete
+Madison/HTCondor reconstruction chain:
 
+```text
 GCD + I3
    |
    v
@@ -14,250 +14,211 @@ GraphNeT conversion
    v
 SQLite database
    |
-   +--> Track / Cascade reconstruction
+   +--> Track/cascade reconstruction
    |
    +--> Energy reconstruction
    |
-   +--> Direction / Vertex reconstruction
+   +--> Direction/vertex reconstruction
+```
 
+PACE is the current development and reconstruction regression environment.
+Madison/HTCondor is the deployment target for the complete workflow.
 
-PACE is currently used as the development and reconstruction regression
-environment. The deployment target for the complete workflow is Madison /
-HTCondor.
+## GraphNeT baseline
 
-GraphNeT baseline
+The unified repository is based on GraphNeT commit
+`6d578d651e38710c5858524b6abee602d3bd2ed6`. This baseline contains the custom
+reconstruction components required by the existing trained models.
 
-The unified repository is based on GraphNeT commit:
+## Madison conversion integration
 
-6d578d651e38710c5858524b6abee602d3bd2ed6
+The PACE GraphNeT baseline includes two Madison conversion components.
 
-This baseline contains the custom reconstruction components required by the
-existing trained models.
+### I3Reader
 
-Madison conversion integration
+File: `src/graphnet/data/readers/i3reader.py`
 
-Two pieces of Madison conversion behavior have been integrated into the PACE
-GraphNeT baseline.
+The reader skips frames when `pop_physics()` raises an exception, preventing
+subsequent processing from using an invalid or stale frame.
 
-I3Reader
+### I3TruthExtractor
 
-File:
+File: `src/graphnet/data/extractors/icecube/i3truthextractor.py`
 
-src/graphnet/data/readers/i3reader.py
+The following Madison truth fields are preserved:
 
-The reader preserves the Madison behavior of skipping problematic
-pop_physics() frames instead of allowing non-I3 read exceptions to continue
-with an invalid/stale frame.
-
-I3TruthExtractor
-
-File:
-
-src/graphnet/data/extractors/icecube/i3truthextractor.py
-
-The Madison custom truth information has been preserved:
-
-oneweight
-true_length
-reconstructed_length
-reconstructed_energy
-deltallh
+- `oneweight`
+- `true_length`
+- `reconstructed_length`
+- `reconstructed_energy`
+- `deltallh`
 
 The Madison elasticity behavior is also preserved.
 
-Conversion workflow
+## Conversion workflow
 
-Current unified files:
+The active conversion files are:
 
-workflows/conversion/conversion.py
-workflows/conversion/exe.sh
-workflows/conversion/condor.sub
+- `workflows/conversion/conversion.py`
+- `workflows/conversion/exe.sh`
+- `workflows/conversion/condor.sub`
 
-Original working Madison files are preserved under:
+The original Madison files are preserved under
+`workflows/conversion/reference/condor/`.
 
-workflows/conversion/reference/condor/
+Each Condor job follows this structure:
 
-The current Condor workflow is intentionally based on:
-
+```text
 one Condor job
     -> one I3 file
     -> one SQLite database
+```
 
-The current GraphNeT I3ToSQLiteConverter automatically derives the SQLite
-filename from the I3 basename, so no merge operation is required for this
-single-file workflow.
+`I3ToSQLiteConverter` derives the SQLite filename from the I3 basename, so
+this single-file workflow does not require a merge operation.
 
-The pulse series is configurable and is passed through:
+The pulse series is configurable and passes through the following files:
 
+```text
 condor.sub
     -> exe.sh
     -> conversion.py
+```
 
-Examples:
-
-SplitRTCleanedInIcePulses
-SRTInIcePulses
+Example pulse series are `SplitRTCleanedInIcePulses` and
+`SRTInIcePulses`.
 
 GCD/I3 matching remains external to the core workflow. A manifest may provide
-one (GCD path, I3 path) pair per Condor job.
+one `(GCD path, I3 path)` pair per Condor job.
 
-Madison environment
+## Madison environment
 
-The existing Madison environment compatibility layer is intentionally
-preserved for the first deployment test:
+The Madison compatibility layer is preserved for the initial deployment test:
 
-CVMFS IceCube setup
-IceTray env-shell
-private GraphNeT Python environment
-private Python site-packages / NumPy handling
+- CVMFS IceCube setup
+- IceTray `env-shell`
+- private GraphNeT Python environment
+- private Python site-packages and NumPy handling
 
-These components have already supported working Madison conversions and should
-not be removed or simplified before real Condor testing.
+These components have supported Madison conversions and should not be removed
+or simplified before Condor validation.
 
-The current reference environment includes:
+The reference environment includes:
 
-/cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/setup.sh
-/data/user/mlarson/icetray/build/env-shell.sh
-/data/user/jliao/envs/mlarson_graphnet_env/bin/python3
+- `/cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/setup.sh`
+- `/data/user/mlarson/icetray/build/env-shell.sh`
+- `/data/user/jliao/envs/mlarson_graphnet_env/bin/python3`
 
-The old Madison PYTHONPATH points to the old custom GraphNeT checkout.
-During deployment it must be changed to the src directory of the unified
-Git checkout being tested.
+The existing Madison `PYTHONPATH` points to the previous custom GraphNeT
+checkout. During deployment, it must point to the `src` directory of the
+unified Git checkout under test.
 
-Reconstruction workflows
+## Reconstruction workflows
 
-Cross-environment reconstruction entry points:
+The cross-environment reconstruction entry points are:
 
-workflows/reconstruction/energy.py
-workflows/reconstruction/track_cascade.py
-workflows/reconstruction/direction_vertex.py
+- `workflows/reconstruction/energy.py`
+- `workflows/reconstruction/track_cascade.py`
+- `workflows/reconstruction/direction_vertex.py`
 
-Original working PACE scripts are preserved under:
+The original PACE-tested scripts are preserved under
+`workflows/reconstruction/reference/pace/`. The active PACE regression
+wrappers are under `workflows/reconstruction/pace/`.
 
-workflows/reconstruction/reference/pace/
+### Energy
 
-PACE regression wrappers are under:
+- Model: `models/energy/energy_model.pth`
+- Detector preprocessing: `IceCubeDeepCore`
+- PACE regression smoke test: passed
 
-workflows/reconstruction/pace/
-Energy
+In this GraphNeT version, `IceCubeDeepCore` and `IceCube86` are not
+interchangeable. The trained energy model contains an `IceCubeDeepCore`
+detector, and this preprocessing contract must be preserved.
 
-Model:
+### Track/cascade
 
-models/energy/energy_model.pth
+- Model: `models/track_cascade/track_cascade_model.pth`
+- Detector preprocessing: `IceCube86`
+- PACE regression smoke test: passed
 
-Detector preprocessing:
+Known non-blocking issue: the `target_pred` CSV column should eventually be
+renamed to `track_score`. Prediction values are unaffected.
 
-IceCubeDeepCore
+### Direction/vertex
 
-IceCubeDeepCore is NOT equivalent to IceCube86 in this GraphNeT version.
-The trained Energy model itself contains an IceCubeDeepCore detector and
-this preprocessing contract must be preserved.
+- Model: `models/direction_vertex/direction_vertex_model.pth`
+- Detector preprocessing: `IceCube86`
+- PACE regression smoke test: passed
 
-Status:
+The trained model depends on these custom GraphNeT components:
 
-PACE regression smoke test: PASSED
-Track / Cascade
+- `JointPositionandDirectionReco`
+- `JointLabel`
+- `JointLoss`
 
-Model:
+The prediction contract is:
 
-models/track_cascade/track_cascade_model.pth
-
-Detector preprocessing:
-
-IceCube86
-
-Status:
-
-PACE regression smoke test: PASSED
-
-Known non-blocking issue:
-
-CSV column `target_pred` should eventually be renamed to `track_score`.
-Prediction values are unaffected.
-Direction / Vertex
-
-Model:
-
-models/direction_vertex/direction_vertex_model.pth
-
-Detector preprocessing:
-
-IceCube86
-
-The existing trained model depends on custom GraphNeT components including:
-
-JointPositionandDirectionReco
-JointLabel
-JointLoss
-
-The model prediction contract is:
-
-position_x
-position_y
-position_z
-dir_x
-dir_y
-dir_z
-direction_kappa
+- `position_x`
+- `position_y`
+- `position_z`
+- `dir_x`
+- `dir_y`
+- `dir_z`
+- `direction_kappa`
 
 The training target contains six values:
 
-position_x
-position_y
-position_z
-dir_x
-dir_y
-dir_z
+- `position_x`
+- `position_y`
+- `position_z`
+- `dir_x`
+- `dir_y`
+- `dir_z`
 
-JointLoss combines the position and direction losses using the behavior
-implemented in the existing code:
+`JointLoss` combines the position and direction losses according to the
+current implementation:
 
+```text
 combined_loss = alpha * position_loss + direction_loss
+```
 
-Status:
+## Reconstruction model verification
 
-PACE regression smoke test: PASSED
-Reconstruction model verification
+See `models/MODELS.md`. The three deployment models are tracked with SHA256
+checksums.
 
-See:
+## Current validation status
 
-models/MODELS.md
+All three unified reconstruction workflows passed PACE validation with the same
+SQLite database, `Greco_0610_Run00142709.db`.
 
-The three deployment models are tracked with SHA256 checksums.
+| Workflow | Status |
+| --- | --- |
+| Energy | Passed |
+| Track/cascade | Passed |
+| Direction/vertex | Passed |
 
-Current validation status
+Each workflow produced the expected CSV reconstruction output with reasonable
+values.
 
-The following unified reconstruction workflows have been tested successfully on
-PACE using the same SQLite database:
+## Next milestone
 
-Greco_0610_Run00142709.db
-
-Results:
-
-Energy             PASSED
-Track / Cascade    PASSED
-Direction / Vertex PASSED
-
-All three produced expected CSV reconstruction output with reasonable values.
-
-Next milestone
-
-The next deployment milestone is Madison / HTCondor validation using a fixed
-Git commit of this repository:
+The next milestone is Madison/HTCondor validation from a fixed repository
+commit:
 
 1. Commit and push the unified integration branch.
-2. Clone/checkout the exact commit on Madison.
-3. Point Madison PYTHONPATH to that checkout's `src` directory.
-4. Preserve the existing IceTray/CVMFS/private-Python environment.
-5. Run a real GCD + I3 conversion.
+2. Clone or check out the exact commit on Madison.
+3. Point the Madison `PYTHONPATH` to that checkout's `src` directory.
+4. Preserve the existing IceTray, CVMFS, and private Python environment.
+5. Run a GCD and I3 conversion.
 6. Verify the resulting SQLite schema and event counts.
-7. Run Energy, Track/Cascade, and Direction/Vertex reconstruction on Condor.
-8. Compare the Condor reconstruction output against the validated PACE
-   behavior.
+7. Run energy, track/cascade, and direction/vertex reconstruction on Condor.
+8. Compare the Condor outputs with the validated PACE behavior.
 
-The workflow is considered successfully migrated only after the complete:
+The migration is complete only after this chain runs successfully on
+Madison/HTCondor:
 
+```text
 I3 -> SQLite -> Energy / TC / DV
-
-chain runs successfully on Madison / HTCondor.
+```
 

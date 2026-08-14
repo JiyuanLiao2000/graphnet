@@ -1,4 +1,4 @@
-"""Example of Batch Prediction Model for Energy with Test Valve."""
+"""Run batch energy prediction for SQLite inputs."""
 
 import os
 import glob
@@ -12,7 +12,7 @@ import torch
 from graphnet.constants import EXAMPLE_DATA_DIR, EXAMPLE_OUTPUT_DIR
 from graphnet.data.constants import FEATURES, TRUTH
 from graphnet.models import StandardModel
-from graphnet.models.detector.icecube import IceCubeDeepCore # ⚠️ 注意：这里是 DeepCore
+from graphnet.models.detector.icecube import IceCubeDeepCore # Required by the energy model.
 from graphnet.models.gnn import DynEdge, DynEdgeTITO
 from graphnet.models.graphs import KNNGraph
 from graphnet.models.graphs.nodes import NodesAsPulses
@@ -36,7 +36,7 @@ def main(
     gpus: Optional[List[int]],
     batch_size: int,
     num_workers: int,
-    max_files: int,  # 🚰 测试阀
+    max_files: int,  # Optional input-file limit.
 ) -> None:
 
     logger = Logger()
@@ -50,7 +50,7 @@ def main(
         "target": target,
     }
 
-    # ⚠️ 确保使用 DeepCore
+    # Use the DeepCore detector preprocessing required by the model.
     graph_definition = KNNGraph(
         detector=IceCubeDeepCore(),
         node_definition=NodesAsPulses(),
@@ -58,11 +58,11 @@ def main(
         input_feature_names=features,
     )
 
-    # Load Energy model
+    # Load the configured energy model.
     logger.info(f"Loading Energy model: {model_path}")
     model = Model.load(model_path)
 
-    # ⚠️ 你的特殊补丁
+    # Initialize _skip_readout for models saved before the attribute existed.
     if not hasattr(model.backbone, '_skip_readout'):
         model.backbone._skip_readout = False
 
@@ -87,7 +87,7 @@ def main(
 
     logger.info(f"Found {len(db_files)} databases in total.")
 
-    # --- 🚰 测试阀逻辑 ---
+    # Apply the optional database limit.
     if max_files > 0:
         db_files = db_files[:max_files]
         logger.info(f"🚰 TEST VALVE ACTIVE: Limiting processing to {len(db_files)} databases.")
@@ -96,7 +96,7 @@ def main(
 
     for db_path in db_files:
         db_name = os.path.basename(db_path).replace(".db", "")
-        output_csv = os.path.join(output_dir, f"{db_name}_E.csv") # 🏷️ 命名后缀为 EV.csv
+        output_csv = os.path.join(output_dir, f"{db_name}_E.csv") # Use the _E.csv suffix.
 
         if os.path.exists(output_csv):
             logger.info(f"Skipping {db_name}, already processed.")
@@ -138,7 +138,7 @@ def main(
         validation_dataloader = data_module.val_dataloader
 
         try:
-            # ⚠️ 这里没有传入 prediction_columns，保持与你原代码一致
+            # Do not override the model's prediction columns.
             results = model.predict_as_dataframe(
                 validation_dataloader,
                 additional_attributes=additional_attributes,
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--input-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model-path", required=True)
-    parser.add_argument("--pulsemap", default="SRTInIcePulses") # 默认值，可以在sbatch里覆盖
+    parser.add_argument("--pulsemap", default="SRTInIcePulses") # May be overridden by an sbatch wrapper.
     parser.add_argument("--target", default="energy")
     parser.add_argument("--truth-table", default="truth")
     parser.add_argument("--max-files", type=int, default=-1)

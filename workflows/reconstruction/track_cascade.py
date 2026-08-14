@@ -1,4 +1,4 @@
-"""Example of Batch Prediction Model for Track/Cascade (TC) with Test Valve."""
+"""Run batch track/cascade prediction for SQLite inputs."""
 
 import os
 import glob
@@ -12,7 +12,7 @@ import torch
 from graphnet.constants import EXAMPLE_DATA_DIR, EXAMPLE_OUTPUT_DIR
 from graphnet.data.constants import FEATURES, TRUTH
 from graphnet.models import StandardModel
-from graphnet.models.detector.icecube import IceCube86 # ⚠️ 切回 IceCube86
+from graphnet.models.detector.icecube import IceCube86 # Required by the track/cascade model.
 from graphnet.models.gnn import DynEdge, DynEdgeTITO
 from graphnet.models.graphs import KNNGraph
 from graphnet.models.graphs.nodes import NodesAsPulses
@@ -36,7 +36,7 @@ def main(
     gpus: Optional[List[int]],
     batch_size: int,
     num_workers: int,
-    max_files: int,  # 🚰 测试阀
+    max_files: int,  # Optional input-file limit.
 ) -> None:
 
     logger = Logger()
@@ -50,7 +50,7 @@ def main(
         "target": target,
     }
 
-    # ⚠️ 严格对应 IceCube86 探测器
+    # Use the IceCube-86 detector preprocessing required by the model.
     graph_definition = KNNGraph(
         detector=IceCube86(),
         node_definition=NodesAsPulses(),
@@ -58,17 +58,17 @@ def main(
         input_feature_names=features,
     )
 
-    # Load TC model
+    # Load the configured track/cascade model.
     logger.info(f"Loading TC model: {model_path}")
     model = Model.load(model_path)
 
-    # ⚠️ 特殊补丁
+    # Initialize _skip_readout for models saved before the attribute existed.
     if not hasattr(model.backbone, '_skip_readout'):
         model.backbone._skip_readout = False
 
     model.eval()
 
-    # ⚠️ 注意这里增加了 "track"
+    # Include the track label in the prediction output.
     additional_attributes = [
         "event_no",
         "energy",
@@ -89,7 +89,7 @@ def main(
 
     logger.info(f"Found {len(db_files)} databases in total.")
 
-    # --- 🚰 测试阀逻辑 ---
+    # Apply the optional database limit.
     if max_files > 0:
         db_files = db_files[:max_files]
         logger.info(f"🚰 TEST VALVE ACTIVE: Limiting processing to {len(db_files)} databases.")
@@ -98,7 +98,7 @@ def main(
 
     for db_path in db_files:
         db_name = os.path.basename(db_path).replace(".db", "")
-        output_csv = os.path.join(output_dir, f"{db_name}TC.csv") # 🏷️ 命名后缀为 TC.csv
+        output_csv = os.path.join(output_dir, f"{db_name}TC.csv") # Use the TC.csv suffix.
 
         if os.path.exists(output_csv):
             logger.info(f"Skipping {db_name}, already processed.")
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model-path", required=True)
     parser.add_argument("--pulsemap", default="SRTInIcePulses")
-    parser.add_argument("--target", default="track") # 默认 target 为 track
+    parser.add_argument("--target", default="track") # Default reconstruction target.
     parser.add_argument("--truth-table", default="truth")
     parser.add_argument("--max-files", type=int, default=-1)
 
