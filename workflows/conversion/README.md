@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.5 seconds
-Output:
 # Madison HTCondor I3-to-SQLite conversion
 
 This directory contains the active Madison conversion workflow:
