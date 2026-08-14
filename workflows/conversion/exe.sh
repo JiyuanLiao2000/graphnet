@@ -44,8 +44,15 @@ echo "Launching GraphNeT conversion..."
 /data/user/mlarson/icetray/build/env-shell.sh \
 /data/user/jliao/envs/mlarson_graphnet_env/bin/python3 \
 -u ../conversion.py "$GCD_FILE" "$I3_FILE" "$OUT_DIR" "$PULSE_KEY"
+CONVERSION_EXIT=$?
 
 # Remove the job-local temporary directory.
 cd ..
 rm -rf "$JOB_TMP_DIR"
+
+if [ "$CONVERSION_EXIT" -ne 0 ]; then
+    echo "Conversion failed with exit code $CONVERSION_EXIT."
+    exit "$CONVERSION_EXIT"
+fi
+
 echo "Job finished successfully and isolated directory cleaned."
