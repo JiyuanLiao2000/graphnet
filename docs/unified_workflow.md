@@ -208,9 +208,21 @@ torch-sparse 0.6.18+pt22cu118
 ```
 
 The complete tested dependency installation is recorded in
-`environments/setup_reconstruction_madison.sh`. `micromamba` itself and the
-created environment directory are deployment dependencies and are not tracked
-as binaries in Git.
+`environments/setup_reconstruction_madison.sh`. The declarative mirror in
+`environments/reconstruction-madison.yml` records the full pinned Python
+dependency set and the CUDA 11.8 PyTorch/PyG wheel sources. It also requests the
+environment ICU and GCC 15 runtime packages needed to provide the validated
+`libstdc++.so.6.0.35` compatibility layer.
+
+The setup script is the canonical Madison installation path because it preserves
+the tested package-install order and verifies that the resulting C++ runtime
+exports `CXXABI_1.3.15`. It clears IceCube Python variables before invoking
+micromamba and creates/runs the environment by its explicit filesystem prefix,
+so neither shell activation nor `.bashrc` modification is required.
+
+`micromamba` itself, its package cache, the created environment directory, and
+runtime `.so` files are deployment dependencies and must not be committed to
+Git.
 
 The three Energy, Track/Cascade, and Direction/Vertex `.pth` models all load
 successfully in this environment, including the custom Direction/Vertex
@@ -261,15 +273,18 @@ must not be expected to see that same `/scratch` path. Jobs therefore use
 Condor file transfer for stdout/stderr and use shared `/data/user/...` paths
 for repository, environment, SQLite input, and final reconstruction outputs.
 
-The current reconstruction convention is:
+For Madison/HTCondor reconstruction, the project convention is a strict
+one-to-one request:
 
 ```text
 request_cpus = num_workers
 ```
 
-The validated Energy smoke test uses `num_workers=1`. `num_workers=0` is not a
-valid default for this GraphNeT DataLoader because its configured
-`prefetch_factor` requires multiprocessing.
+`num_workers` must be a positive integer. The validated Energy smoke test uses
+`num_workers=1`, so its Condor job requests one CPU. `num_workers=0` is not
+valid for this GraphNeT DataLoader because its configured `prefetch_factor`
+requires multiprocessing. The Condor wrapper rejects zero before starting
+Python so the failure is immediate and explicit.
 
 ## Reconstruction model verification
 
@@ -299,10 +314,11 @@ Madison validation currently stands at:
 
 ## Next milestone
 
-The next milestone is to convert the validated interactive Energy command into
-a non-interactive HTCondor reconstruction wrapper and submit file. After that
-wrapper succeeds, reuse the same environment and Condor contract for
-Track/Cascade and Direction/Vertex reconstruction.
+The Energy wrapper and submit file are now tracked under
+`workflows/reconstruction/condor/`. The next milestone is to run them as a
+non-interactive HTCondor smoke job and validate the transferred logs and shared
+CSV output. Only after that job succeeds should the same environment and Condor
+contract be added for Track/Cascade and Direction/Vertex reconstruction.
 
 The migration is complete only after this chain runs successfully on
 Madison/HTCondor:

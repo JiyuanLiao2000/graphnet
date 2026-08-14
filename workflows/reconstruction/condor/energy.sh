@@ -15,11 +15,28 @@ ENV_PREFIX="$6"
 MAMBA="$7"
 NUM_WORKERS="$8"
 
+# This GraphNeT DataLoader always sets prefetch_factor, so zero workers is
+# invalid with PyTorch 2.2. Keep request_cpus equal to this positive value.
+if ! [[ "$NUM_WORKERS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "num_workers must be a positive integer; num_workers=0 is unsupported" >&2
+    exit 2
+fi
+
 # Reconstruction must not inherit the IceCube conversion Python environment.
 unset PYTHONHOME
 unset PYTHONPATH
 
+if [ ! -x "$MAMBA" ]; then
+    echo "micromamba is not executable: $MAMBA" >&2
+    exit 1
+fi
+if [ ! -d "$ENV_PREFIX" ]; then
+    echo "Reconstruction environment does not exist: $ENV_PREFIX" >&2
+    exit 1
+fi
+
 # Prefer the C++ runtime shipped with the validated micromamba environment.
+# This export must happen before micromamba starts Python.
 export LD_LIBRARY_PATH="${ENV_PREFIX}/lib:${LD_LIBRARY_PATH:-}"
 export PYTHONPATH="${GRAPHNET_ROOT}/src"
 export MAMBA_ROOT_PREFIX="$(dirname "$(dirname "$ENV_PREFIX")")"
@@ -34,7 +51,7 @@ printf 'Input: %s\n' "$INPUT_DIR"
 printf 'Output: %s\n' "$OUTPUT_DIR"
 printf 'Workers: %s\n' "$NUM_WORKERS"
 
-"$MAMBA" run -n graphnet-reco \
+"$MAMBA" run -p "$ENV_PREFIX" \
     python "$GRAPHNET_ROOT/workflows/reconstruction/energy.py" \
     --input-dir "$INPUT_DIR" \
     --output-dir "$OUTPUT_DIR" \

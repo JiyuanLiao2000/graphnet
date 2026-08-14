@@ -164,3 +164,11 @@ data/examples/output/
 !/data/tests/prometheus/22980001_photons.parquet
 # Notebooks
 **.ipynb
+
+# Local Madison micromamba installations, caches, and environments
+/micromamba
+/micromamba.exe
+/.mamba/
+/.micromamba/
+/envs/
+/pkgs/
