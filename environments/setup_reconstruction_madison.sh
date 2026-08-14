@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# User guide: docs/madison_condor_quickstart.md
+
 # Reproduce the Madison/HTCondor reconstruction environment used by the
 # validated Energy, Track/Cascade, and Direction/Vertex models.
 #
@@ -13,8 +15,8 @@ set -euo pipefail
 unset PYTHONHOME
 unset PYTHONPATH
 
-MAMBA="${MAMBA:-/data/user/jliao/software/micromamba/bin/micromamba}"
-MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-/data/user/jliao/envs/micromamba}"
+MAMBA="${MAMBA:-/data/user/${USER}/software/micromamba/bin/micromamba}"
+MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-/data/user/${USER}/envs/micromamba}"
 ENV_NAME="${ENV_NAME:-graphnet-reco}"
 ENV_PREFIX="${ENV_PREFIX:-${MAMBA_ROOT_PREFIX}/envs/${ENV_NAME}}"
 

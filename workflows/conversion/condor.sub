@@ -1,3 +1,7 @@
+# USER SETUP REQUIRED
+# This validated Madison example contains user- and site-specific paths.
+# Review workflows/conversion/README.md before submitting under another account.
+
 # HTCondor submission settings.
 executable = exe.sh
 

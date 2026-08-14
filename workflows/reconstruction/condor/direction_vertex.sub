@@ -1,3 +1,8 @@
+# USER SETUP REQUIRED
+# The path macros below are validated smoke-test examples owned by the original
+# deployer. Do not submit this file unchanged. Follow
+# docs/madison_condor_quickstart.md and override every user-specific path.
+
 universe = vanilla
 
 executable = direction_vertex.sh

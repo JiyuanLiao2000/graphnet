@@ -24,6 +24,10 @@ SQLite database
 PACE is the reconstruction regression environment. Madison/HTCondor is the
 deployment target for the complete workflow.
 
+New users should start with `docs/madison_condor_quickstart.md`. It provides the
+supported clone, environment creation, input validation, submission,
+monitoring, output verification, and troubleshooting path.
+
 ## GraphNeT baseline
 
 The unified repository is based on GraphNeT commit
@@ -379,6 +383,7 @@ Git-managed reconstruction environment was recreated independently, all three
 serialized models loaded successfully, and Energy inference passed on a legacy
 CPU worker with the compatibility Polars build.
 
-The Madison deployment and reproducibility gates are complete. A final review
-of the integration branch remains before any merge to `main`; this environment
-update does not merge the branch.
+The Madison deployment and reproducibility gates are complete. The verified
+integration was merged into `main` with its linear commit history preserved.
+Operational onboarding is maintained in
+`docs/madison_condor_quickstart.md`.
