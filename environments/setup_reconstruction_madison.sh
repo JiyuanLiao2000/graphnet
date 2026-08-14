@@ -50,7 +50,7 @@ export LD_LIBRARY_PATH="${ENV_PREFIX}/lib:${LD_LIBRARY_PATH:-}"
     matplotlib==3.7.5 \
     numpy==1.24.4 \
     pandas==2.0.3 \
-    polars==0.20.21 \
+    polars-lts-cpu==0.20.21 \
     pyarrow==15.0.2 \
     pydantic==2.7.0 \
     pytorch-lightning==2.2.2 \
@@ -84,11 +84,22 @@ if ! strings "$LIBSTDCXX" | grep "CXXABI_1.3.15" >/dev/null; then
 fi
 
 "$MAMBA" run -p "$ENV_PREFIX" python -c '
-import sys, dill, torch, torch_geometric, torch_cluster, torch_scatter, torch_sparse
+import sys
+from importlib.metadata import version
+
+import dill
+import polars
+import torch
+import torch_cluster
+import torch_geometric
+import torch_scatter
+import torch_sparse
 print("python:", sys.version)
 print("torch:", torch.__version__)
 print("cuda built:", torch.version.cuda)
 print("dill:", dill.__version__)
+print("polars-lts-cpu:", version("polars-lts-cpu"))
+print("polars module:", polars.__file__)
 print("torch_geometric:", torch_geometric.__version__)
 print("torch_cluster:", torch_cluster.__version__)
 print("torch_scatter:", torch_scatter.__version__)

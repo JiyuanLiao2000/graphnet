@@ -55,9 +55,42 @@ request_cpus = num_workers
 ```
 
 `num_workers` must be at least one because this GraphNeT DataLoader configures
-`prefetch_factor`. Energy was validated with one worker. Track/Cascade and
-Direction/Vertex were validated concurrently with four workers, four requested
-CPUs, and 12 GB of requested memory per job.
+`prefetch_factor`. Energy was initially validated with one worker. Track/Cascade
+and Direction/Vertex were validated concurrently with four workers, four
+requested CPUs, and 12 GB of requested memory per job. The clean-environment
+Energy compatibility test subsequently passed on a legacy CPU worker with the
+same four-worker, four-CPU, 12 GB profile.
+
+## Legacy CPU compatibility
+
+Some Madison GPU workers advertise `Microarch = "x86_64-v2"` and do not
+advertise `has_avx2`. The standard Polars 0.20.21 wheel can raise
+`SIGILL` (exit code 132) while importing on these workers because it expects
+AVX2, FMA, BMI1, BMI2, and LZCNT instructions. The Madison
+reconstruction environment therefore uses `polars-lts-cpu==0.20.21`,
+which still imports as `polars`.
+
+Do not use `POLARS_SKIP_CPU_CHECK` as a workaround: bypassing a check
+cannot add missing CPU instructions. Production jobs should remain portable
+across the heterogeneous pool and should not require AVX2.
+
+To list legacy-CPU GPU workers:
+
+```bash
+condor_status \
+  -constraint 'TotalGPUs > 0 && (has_avx2 =!= true)' \
+  -af Machine Microarch TotalGPUs | sort -u
+```
+
+To deliberately validate the compatibility build, add the temporary constraint
+at submission time:
+
+```bash
+condor_submit energy.sub \
+  -append 'requirements = (TARGET.has_avx2 =!= true)'
+```
+
+Do not add that constraint to the tracked production submit files.
 
 ## Runtime isolation
 
