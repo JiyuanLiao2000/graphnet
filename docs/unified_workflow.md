@@ -293,11 +293,17 @@ valid for this GraphNeT DataLoader because its configured `prefetch_factor`
 requires multiprocessing. The Condor wrapper rejects zero before starting
 Python so the failure is immediate and explicit.
 
-The initial Track/Cascade and Direction/Vertex batch tests are intentionally
-submitted concurrently as independent jobs. Each job uses
-`num_workers=4`, `request_cpus=4`, and `request_memory=12GB`, with separate
-Condor logs and shared output directories. This exercises production-like data
-loading while preserving the one-to-one CPU-worker accounting rule.
+The validated Track/Cascade and Direction/Vertex batch tests were submitted
+concurrently as independent jobs. Each job used `num_workers=4`,
+`request_cpus=4`, and `request_memory=12GB`, with separate Condor logs and
+shared output directories. This exercised production-like data loading while
+preserving the one-to-one CPU-worker accounting rule.
+
+All three submit files expose `batch_size` and `max_files` macros. The tracked
+smoke configuration uses `batch_size=10` and `max_files=1`; set
+`max_files=-1` to process every database discovered in the input directory.
+Operational submission instructions are in
+`workflows/reconstruction/condor/README.md`.
 
 ## Reconstruction model verification
 
@@ -321,23 +327,21 @@ Madison validation currently stands at:
 | Track/cascade model load | Passed |
 | Direction/vertex model load | Passed |
 | Energy reconstruction on converted Madison DB | Passed |
-| Track/cascade reconstruction in a non-interactive Condor job | Pending |
-| Direction/vertex reconstruction in a non-interactive Condor job | Pending |
+| Track/cascade reconstruction in a non-interactive Condor job | Passed |
+| Direction/vertex reconstruction in a non-interactive Condor job | Passed |
 | Energy reconstruction in a non-interactive Condor job | Passed |
+| Clean reconstruction environment recreation from Git definition | Pending |
 
 ## Next milestone
 
-The Energy wrapper and submit file under
-`workflows/reconstruction/condor/` have passed a non-interactive HTCondor
-smoke job, including transferred logs and the shared CSV output. Track/Cascade
-and Direction/Vertex wrappers are now tracked with the same environment
-isolation, C++ runtime, shell `PATH`, GPU, CPU-worker, file-transfer, and
-shared-storage contract. Their next milestone is a concurrent two-job Condor
-smoke test followed by independent CSV and log validation.
-
-The migration is complete only after this chain runs successfully on
-Madison/HTCondor:
+The complete Madison/HTCondor data path has passed:
 
 ```text
 I3 -> SQLite -> Energy / TC / DV
 ```
+
+Energy, Track/Cascade, and Direction/Vertex each produced validated CSV output
+from the converted Madison database in non-interactive Condor GPU jobs. The
+remaining reproducibility gate before considering a merge to `main` is to
+create a separate clean reconstruction environment from the Git-managed
+environment definition and repeat the import/model-load verification.

@@ -10,8 +10,10 @@ graphnet_root = /data/user/jliao/software/graphnet_unified
 env_prefix = /data/user/jliao/envs/micromamba/envs/graphnet-reco
 mamba = /data/user/jliao/software/micromamba/bin/micromamba
 num_workers = 1
+batch_size = 10
+max_files = 1
 
-arguments = $(input_dir) $(output_dir) $(model_path) $(pulsemap) $(graphnet_root) $(env_prefix) $(mamba) $(num_workers)
+arguments = $(input_dir) $(output_dir) $(model_path) $(pulsemap) $(graphnet_root) $(env_prefix) $(mamba) $(num_workers) $(batch_size) $(max_files)
 
 request_cpus = $(num_workers)
 request_memory = 8GB
