@@ -44,6 +44,12 @@ Supporting references:
 > user-owned micromamba Python 3.8 / PyTorch 2.2 environment. Follow the
 > Quickstart instead of the generic installation examples below, and do not
 > initialize micromamba in `.bashrc`.
+>
+> **Madison users must not run `pip install .`, `pip install -e .`, or the
+> generic `requirements/torch_*.txt` installation commands in either validated
+> runtime.** The repository's `setup.py` and the generic Install section below
+> are retained for non-Madison GraphNeT development; they do not encode the
+> tested two-runtime Condor dependency contract.
 
 ### Publications using GraphNeT
 
