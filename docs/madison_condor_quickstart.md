@@ -95,6 +95,41 @@ git pull --ff-only
 The repository must be under shared storage such as `/data/user`; GPU workers
 cannot use a checkout located only under submitter-local `/scratch`.
 
+## Dependency and installation contract
+
+Cloning the repository supplies the GraphNeT source used by this workflow. Do
+not install the repository as a Python package into either Madison runtime. The
+conversion preflight and all reconstruction wrappers set `PYTHONPATH` to
+`$REPO/src`, so the checked-out custom classes and import paths are used
+directly.
+
+The authoritative dependency entry points are:
+
+| Scope | Authoritative files/runtime | Status |
+| --- | --- | --- |
+| Madison conversion | `environments/check_conversion_madison.sh` plus the complete shared IceTray/Python 3.12 overlay | Validated as one runtime |
+| Madison reconstruction | `environments/setup_reconstruction_madison.sh` and `environments/reconstruction-madison.yml` | Git-reproducible and validated |
+| Generic GraphNeT packaging | `setup.py`, `requirements/torch_*.txt`, and the generic Install section in `README.md` | Not a Madison deployment entry point |
+
+For the Madison workflow, do **not** run any of the following:
+
+```bash
+pip install .
+pip install -e .
+pip install -e '.[torch]'
+pip install -r requirements/torch_gpu.txt -e '.[develop,torch]'
+```
+
+Those generic package constraints are intentionally broader than the validated
+Condor contract. Resolving them again can replace the tested Torch/PyG pair,
+install a non-legacy-compatible Polars wheel, or change dependencies such as
+Awkward. A single `setup.py` also cannot describe both the IceTray/Python 3.12
+conversion runtime and the Python 3.8/CUDA reconstruction runtime.
+
+If you need a separate, general-purpose GraphNeT development installation,
+create a third environment and follow the generic installation documentation
+there. Never reuse or modify either validated Madison runtime for that purpose.
+
 ## Conversion phase: I3 + GCD -> SQLite
 
 The user-facing submission layer reuses the exact validated conversion baseline:

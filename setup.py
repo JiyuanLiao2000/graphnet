@@ -1,6 +1,13 @@
 # type: ignore[no-untyped-call]
 """Setup script for the GraphNeT package."""
 
+# Madison/HTCondor deployment note:
+# This file retains the generic GraphNeT package metadata. It is not the
+# dependency installer or lock file for the validated Madison workflow. That
+# workflow imports this checkout through PYTHONPATH and uses the two runtimes
+# documented in docs/madison_condor_quickstart.md. Do not use pip install .
+# or pip install -e .[torch] to prepare either Madison runtime.
+
 from setuptools import setup, find_packages
 import versioneer
 
