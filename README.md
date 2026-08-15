@@ -20,24 +20,30 @@ Feel free to join the [GraphNeT Slack group](https://join.slack.com/t/graphnet-t
 
 ### Madison / HTCondor deployment
 
-This fork includes a validated Madison workflow for GraphNeT SQLite
-reconstruction with the tracked Energy, Track/Cascade, and Direction/Vertex
-models.
+This fork includes a validated end-to-end Madison workflow:
+
+```text
+IceCube I3 + GCD -> GraphNeT SQLite -> Energy / Track-Cascade / Direction-Vertex
+```
 
 **Start with the
-[Madison HTCondor Reconstruction Quickstart](docs/madison_condor_quickstart.md).**
+[Madison HTCondor End-to-End Quickstart](docs/madison_condor_quickstart.md).**
+It covers a clean checkout, shared conversion-runtime validation, Condor
+I3-to-SQLite conversion, SQLite checks, reconstruction-environment creation,
+all three GPU jobs, and output verification.
 
 Supporting references:
 
 - [Architecture and validation record](docs/unified_workflow.md)
 - [Condor operational reference](workflows/reconstruction/condor/README.md)
-- [I3-to-SQLite conversion boundary](workflows/conversion/README.md)
+- [I3-to-SQLite conversion reference](workflows/conversion/README.md)
 - [Model contracts and SHA256 checksums](models/MODELS.md)
 
-> Madison reconstruction uses a dedicated micromamba Python 3.8 / PyTorch 2.2
-> environment. Do not use the generic installation examples below, source the
-> IceCube CVMFS environment, or initialize micromamba in `.bashrc` for this
-> deployment.
+> Madison conversion and reconstruction use separate environments. Conversion
+> uses the validated shared IceTray/Python 3.12 runtime; reconstruction uses a
+> user-owned micromamba Python 3.8 / PyTorch 2.2 environment. Follow the
+> Quickstart instead of the generic installation examples below, and do not
+> initialize micromamba in `.bashrc`.
 
 ### Publications using GraphNeT
 
