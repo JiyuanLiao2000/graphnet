@@ -1,22 +1,34 @@
-# Madison HTCondor Reconstruction Quickstart
+# Madison HTCondor End-to-End Quickstart
 
-This is the supported onboarding path for running the repository's Energy,
-Track/Cascade, and Direction/Vertex reconstruction workflows on the Madison
-HTCondor GPU pool.
+This is the supported onboarding path for the complete Madison workflow:
 
-The guide starts from one or more GraphNeT SQLite databases. If the input is
-still IceCube I3 + GCD, read [Conversion from I3](#conversion-from-i3) before
-continuing.
+```text
+IceCube I3 + matching GCD
+    -> GraphNeT SQLite
+    -> Energy reconstruction
+    -> Track/Cascade reconstruction
+    -> Direction/Vertex reconstruction
+```
 
-No Singularity image, container, IceTray setup, or shell activation is needed
-for SQLite reconstruction.
+The conversion and reconstruction stages deliberately use different
+environments. Conversion uses the complete shared Madison IceTray/Python 3.12
+runtime validated by this repository. Reconstruction uses a user-owned,
+Git-reproducible micromamba Python 3.8 / PyTorch 2.2 environment.
+
+A user who already has GraphNeT SQLite databases may skip the
+[conversion phase](#conversion-phase-i3--gcd---sqlite) and continue at
+[Install micromamba](#2-install-micromamba-without-modifying-bashrc).
+
+No Singularity image or container is required.
 
 ## What the workflow produces
 
-For each input database, the three independent jobs produce:
+Each manifest row produces one SQLite database. The three independent
+reconstruction jobs then produce:
 
-| Workflow | Model | Output suffix |
+| Stage | Model | Output |
 | --- | --- | --- |
+| I3/GCD conversion | none | one GraphNeT `.db` per I3 file |
 | Energy | `models/energy/energy_model.pth` | `_E.csv` |
 | Track/Cascade | `models/track_cascade/track_cascade_model.pth` | `TC.csv` |
 | Direction/Vertex | `models/direction_vertex/direction_vertex_model.pth` | `_DV.csv` |
@@ -47,17 +59,23 @@ You need:
 - a Madison account and access to `npx-submitter`;
 - writable `/data/user/$USER` and `/scratch/$USER` directories;
 - `git`, `curl`, and `tar` on the submit host;
-- one or more GraphNeT SQLite `.db` files directly inside one input directory;
-- the pulse table name used during conversion, commonly
-  `SplitRTCleanedInIcePulses` or `SRTInIcePulses`.
+- one or more IceCube I3 files and the matching GCD path for each file, or
+  existing GraphNeT SQLite databases;
+- the pulse series to extract, commonly `SplitRTCleanedInIcePulses` or
+  `SRTInIcePulses`.
 
-Start in a clean Bash shell. Do **not** source the IceCube CVMFS setup for
-reconstruction.
+GCD/I3 matching is dataset-specific. Complete that matching before submission
+and record it as the two-column manifest described below.
+
+Start in a clean Bash shell. Do not source IceCube CVMFS manually in the shell
+that will later configure reconstruction. The conversion preflight and Condor
+wrapper source CVMFS inside their own processes, while reconstruction wrappers
+clear IceCube environment variables before Python starts.
 
 ## 1. Clone `main` to shared storage
 
 ```bash
-export REPO="/data/user/$USER/software/graphnet"
+export REPO="/data/user/$USER/software/graphnet_unified"
 
 git clone --branch main --single-branch \
   https://github.com/JiyuanLiao2000/graphnet.git "$REPO"
@@ -76,6 +94,195 @@ git pull --ff-only
 
 The repository must be under shared storage such as `/data/user`; GPU workers
 cannot use a checkout located only under submitter-local `/scratch`.
+
+## Conversion phase: I3 + GCD -> SQLite
+
+The user-facing submission layer reuses the exact validated conversion baseline:
+
+- `workflows/conversion/exe.sh`
+- `workflows/conversion/conversion.py`
+
+Those files retain the working Madison IceTray and Python paths. The
+parameterized submit file under `workflows/conversion/condor/` supplies
+user-specific storage paths without changing the baseline.
+
+### A. Validate the complete shared conversion runtime
+
+Run the tracked preflight from the repository root:
+
+```bash
+cd "$REPO"
+bash environments/check_conversion_madison.sh
+```
+
+The default shared runtime is:
+
+```text
+IceCube CVMFS: /cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/setup.sh
+IceTray:       /data/user/mlarson/icetray/build/env-shell.sh
+Python:        /data/user/jliao/envs/mlarson_graphnet_env/bin/python3
+site-packages: /data/user/jliao/envs/mlarson_graphnet_env/lib/python3.12/site-packages
+```
+
+Every path component was verified as readable/executable by ordinary Madison
+users. The Python executable resolves to the CVMFS Python 3.12.5 installation;
+the user path supplies the complete, validated site-packages overlay. Treat the
+overlay as one runtime rather than removing packages that may be implicit
+dependencies.
+
+A successful check ends with:
+
+```text
+Conversion runtime preflight: PASS
+converter: I3ToSQLiteConverter
+extractors: I3TruthExtractor I3FeatureExtractorIceCube86
+```
+
+The script supports `CVMFS_SETUP`, `ICETRAY_ENV_SHELL`,
+`CONVERSION_PYTHON`, and `CONVERSION_SITE_PACKAGES` overrides if the
+Madison shared deployment moves.
+
+### B. Prepare the conversion submit directory
+
+```bash
+export CONVERSION_SUBMIT_DIR="/scratch/$USER/graphnet-conversion"
+export CONVERSION_OUTPUT_DIR="/data/user/$USER/graphnet_workflow/sqlite"
+export PULSEMAP="SplitRTCleanedInIcePulses"
+
+mkdir -p "$CONVERSION_SUBMIT_DIR"
+
+cp "$REPO/workflows/conversion/exe.sh" \
+   "$REPO/workflows/conversion/conversion.py" \
+   "$REPO/workflows/conversion/condor/conversion.sub" \
+   "$CONVERSION_SUBMIT_DIR/"
+
+cd "$CONVERSION_SUBMIT_DIR"
+```
+
+The generic submit file invokes `/bin/bash exe.sh`, so the copied baseline
+script does not need an executable file mode. Logs stay in the submitter-local
+scratch directory. Final databases are written to shared
+`/data/user/$USER/graphnet_workflow/sqlite`.
+
+The defaults assume the checkout path used in section 1. For a different
+checkout, output directory, or pulse series, override the corresponding submit
+macros with `condor_submit -append`.
+
+### C. Create the GCD/I3 manifest
+
+Create `manifest.txt` with exactly two whitespace-separated paths per row:
+
+```text
+/shared/gcd/GCD_Run001.i3.gz /shared/i3/Run001.i3.zst
+/shared/gcd/GCD_Run002.i3.gz /shared/i3/Run002.i3.zst
+```
+
+The first column is the GCD; the second is the I3 file. GCD `.tar`,
+`.tar.gz`, and `.tgz` archives are supported. Paths containing whitespace
+are not supported by this manifest format.
+
+One manifest row queues one Condor process and produces one database named from
+the I3 basename.
+
+### D. Parse the job before submitting
+
+```bash
+condor_submit -dump conversion.ad conversion.sub
+
+grep -E '^(Cmd|Args|RequestCpus|RequestMemory|TransferInput|Out|Err|UserLog)' \
+  conversion.ad
+```
+
+Expected fields include:
+
+```text
+Cmd="/bin/bash"
+Args="exe.sh <GCD> <I3> <output> <pulsemap> <GraphNeT root>"
+RequestCpus=1
+RequestMemory=8192
+TransferInput="exe.sh,conversion.py"
+```
+
+`-dump` writes the resolved ClassAd locally and does not submit to the
+schedd. Its synthetic “submitted to cluster 1” message is not a live cluster.
+
+### E. Submit and monitor conversion
+
+```bash
+condor_submit \
+  -batch-name graphnet-conversion \
+  conversion.sub
+
+condor_q
+```
+
+The submit file requires workers with the IceCube CVMFS mount, transfers the
+two baseline scripts into the execute sandbox, and propagates conversion
+failures as nonzero job exit codes.
+
+After completion:
+
+```bash
+ls -lh conversion.*.log conversion.*.out conversion.*.err
+find "$CONVERSION_OUTPUT_DIR" -maxdepth 1 -type f -name '*.db' -print
+```
+
+The Condor event log must report normal termination with return value 0.
+
+### F. Validate the converted SQLite databases
+
+```bash
+export INPUT_DIR="$CONVERSION_OUTPUT_DIR"
+
+/usr/bin/python3 - "$INPUT_DIR" "$PULSEMAP" <<'PY'
+import glob
+import os
+import sqlite3
+import sys
+
+input_dir, pulsemap = sys.argv[1:]
+databases = sorted(glob.glob(os.path.join(input_dir, "*.db")))
+if not databases:
+    raise SystemExit(f"No .db files found in {input_dir}")
+
+for database in databases:
+    with sqlite3.connect(database) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+        missing = {"truth", pulsemap} - tables
+        if missing:
+            raise SystemExit(f"{database}: missing tables {sorted(missing)}")
+        truth_events = connection.execute(
+            "SELECT COUNT(DISTINCT event_no) FROM truth"
+        ).fetchone()[0]
+        pulse_events = connection.execute(
+            f"SELECT COUNT(DISTINCT event_no) FROM {pulsemap}"
+        ).fetchone()[0]
+        pulse_rows = connection.execute(
+            f"SELECT COUNT(*) FROM {pulsemap}"
+        ).fetchone()[0]
+
+    if truth_events != pulse_events:
+        raise SystemExit(
+            f"{database}: truth events={truth_events}, "
+            f"pulse events={pulse_events}"
+        )
+    print(
+        f"PASS: {database}: events={truth_events}, "
+        f"pulse rows={pulse_rows}"
+    )
+
+print("SQLite validation: PASS")
+PY
+```
+
+The validated end-to-end smoke produced 443 truth events, 443 pulse-table
+events, and 15,077 pulse rows. Continue only after the new databases pass this
+check.
 
 ## 2. Install micromamba without modifying `.bashrc`
 
@@ -187,12 +394,25 @@ preprocessing.
 
 ## 5. Check the SQLite input
 
-Set the input directory and pulse table:
+If you completed the conversion phase, `INPUT_DIR` already points to
+`$CONVERSION_OUTPUT_DIR` and `PULSEMAP` already records the extracted pulse
+series. Confirm them:
+
+```bash
+printf 'INPUT_DIR=%s\nPULSEMAP=%s\n' "$INPUT_DIR" "$PULSEMAP"
+```
+
+If you skipped conversion because databases already exist, set both variables
+now:
 
 ```bash
 export INPUT_DIR="/data/user/$USER/path/to/sqlite"
 export PULSEMAP="SplitRTCleanedInIcePulses"
+```
 
+Then discover the direct database children:
+
+```bash
 find "$INPUT_DIR" -maxdepth 1 -type f -name '*.db' -print
 ```
 
@@ -236,7 +456,7 @@ not repaired by the reconstruction job.
 
 ```bash
 export SUBMIT_DIR="/scratch/$USER/graphnet-reconstruction"
-export OUTPUT_BASE="/data/user/$USER/graphnet-reconstruction-output"
+export OUTPUT_BASE="/data/user/$USER/graphnet_workflow/reconstruction"
 
 mkdir -p "$SUBMIT_DIR" "$OUTPUT_BASE"
 cp "$REPO"/workflows/reconstruction/condor/{energy,track_cascade,direction_vertex}.{sh,sub} \
@@ -399,6 +619,8 @@ entry points.
 
 | Symptom | Cause | Action |
 | --- | --- | --- |
+| Conversion preflight reports an unreadable shared path | Madison shared runtime moved or permissions changed | Use the documented path override only after the replacement runtime is verified |
+| Conversion exits without a database | I3/GCD, pulse series, IceTray, or converter failure | Read the conversion `.err`, `.out`, and final Condor event-log entry |
 | `No module named encodings` | IceCube CVMFS set `PYTHONHOME`/`PYTHONPATH` | Start a clean shell and use the tracked reconstruction wrapper; do not source CVMFS |
 | `CXXABI_1.3.15 not found` | Worker loaded `/lib64/libstdc++.so.6` | Use the tracked wrapper and the environment created by the setup script |
 | `Failed to find a shell to run the script with` | Minimal worker `PATH` | Use the tracked wrapper, which adds `/usr/bin:/bin` before micromamba |
@@ -415,23 +637,32 @@ count and set `num_workers` to the same value.
 Do not work around the Polars failure with `POLARS_SKIP_CPU_CHECK`; skipping a
 check cannot add missing CPU instructions.
 
-## Conversion from I3
+## Environment boundary
 
-SQLite reconstruction and I3 conversion intentionally use different Python
-environments. The active conversion workflow is under `workflows/conversion/`,
-but its IceTray `env-shell`, private Python, and Python site-packages paths are
-Madison deployment-specific.
+Conversion and reconstruction intentionally remain separate:
 
-If starting from I3 + GCD, read `workflows/conversion/README.md`. Do not run
-IceCube CVMFS setup inside a reconstruction job, and do not try to load the
-serialized reconstruction models in the Python 3.12 conversion environment.
+| Stage | Runtime |
+| --- | --- |
+| I3/GCD -> SQLite | shared IceTray + CVMFS Python 3.12 runtime |
+| SQLite -> Energy/TC/DV | user-owned micromamba Python 3.8 + PyTorch 2.2/cu118 |
+
+Do not run IceCube CVMFS setup inside reconstruction jobs. Do not try to load
+the serialized reconstruction models in the Python 3.12 conversion runtime.
+The reconstruction wrappers clear `PYTHONHOME` and `PYTHONPATH` and select
+the environment C++ runtime before Python starts.
+
+See `workflows/conversion/README.md` for the conversion operational reference.
 
 ## Key files
 
 | Purpose | File |
 | --- | --- |
-| Environment installer | `environments/setup_reconstruction_madison.sh` |
-| Pinned dependency mirror | `environments/reconstruction-madison.yml` |
+| Shared conversion runtime preflight | `environments/check_conversion_madison.sh` |
+| Parameterized conversion submit file | `workflows/conversion/condor/conversion.sub` |
+| GCD/I3 manifest example | `workflows/conversion/condor/manifest.example` |
+| Validated conversion baseline | `workflows/conversion/exe.sh`, `conversion.py` |
+| Reconstruction environment installer | `environments/setup_reconstruction_madison.sh` |
+| Reconstruction dependency mirror | `environments/reconstruction-madison.yml` |
 | Condor operational reference | `workflows/reconstruction/condor/README.md` |
 | Energy entry point | `workflows/reconstruction/energy.py` |
 | Track/Cascade entry point | `workflows/reconstruction/track_cascade.py` |

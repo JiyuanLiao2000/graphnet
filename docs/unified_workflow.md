@@ -24,9 +24,10 @@ SQLite database
 PACE is the reconstruction regression environment. Madison/HTCondor is the
 deployment target for the complete workflow.
 
-New users should start with `docs/madison_condor_quickstart.md`. It provides the
-supported clone, environment creation, input validation, submission,
-monitoring, output verification, and troubleshooting path.
+New users should start with `docs/madison_condor_quickstart.md`. It provides
+the supported clean-checkout path from I3/GCD conversion through SQLite
+validation, reconstruction-environment creation, all three GPU jobs, output
+verification, and troubleshooting.
 
 ## GraphNeT baseline
 
@@ -61,13 +62,18 @@ The Madison elasticity behavior is also preserved.
 
 ## Conversion workflow
 
-The active conversion files are:
+The validated baseline files are:
 
 - `workflows/conversion/conversion.py`
 - `workflows/conversion/exe.sh`
 - `workflows/conversion/condor.sub`
 
-The original Madison files are preserved under
+They remain unchanged as the regression baseline. Ordinary users submit the
+same `exe.sh` and `conversion.py` through the parameterized layer:
+
+- `workflows/conversion/condor/conversion.sub`
+
+The original Madison reference files remain preserved under
 `workflows/conversion/reference/condor/`.
 
 Each Condor job follows this structure:
@@ -84,9 +90,9 @@ this single-file workflow does not require a merge operation.
 The pulse series is configurable and passes through the following files:
 
 ```text
-condor.sub
-    -> exe.sh
-    -> conversion.py
+workflows/conversion/condor/conversion.sub
+    -> baseline exe.sh
+    -> baseline conversion.py
 ```
 
 Example pulse series are `SplitRTCleanedInIcePulses` and
@@ -99,25 +105,27 @@ one `(GCD path, I3 path)` pair per Condor job.
 
 Conversion and reconstruction intentionally use separate environments.
 
-The conversion compatibility layer remains:
-
-- CVMFS IceCube setup
-- IceTray `env-shell`
-- private conversion Python environment
-- private Python site-packages and NumPy handling
-
-The reference conversion environment includes:
+The complete shared conversion runtime includes:
 
 - `/cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/setup.sh`
 - `/data/user/mlarson/icetray/build/env-shell.sh`
 - `/data/user/jliao/envs/mlarson_graphnet_env/bin/python3`
+- `/data/user/jliao/envs/mlarson_graphnet_env/lib/python3.12/site-packages`
 
-The unified checkout is supplied through `PYTHONPATH` and must point to the
-current repository's `src` directory.
+The Python executable resolves to CVMFS Python 3.12.5. Permission checks
+confirmed that ordinary Madison users can read and execute every component.
+The full site-packages overlay remains intact so implicit conversion
+dependencies are not removed.
 
-The Madison conversion smoke test successfully produced
-`Greco_0414_Run00142433.db` from an I3 file and its GCD input. The resulting
-SQLite schema and event counts were validated.
+`environments/check_conversion_madison.sh` validates the shared runtime,
+current checkout, NumPy, IceCube, converter, and extractors without
+contaminating the caller's shell. The unified checkout is supplied through
+`PYTHONPATH` and points to the current repository's `src` directory.
+
+The original Madison conversion smoke and the later parameterized user-path
+smoke both produced `Greco_0414_Run00142433.db`. The later database contained
+443 matching truth/pulse events and 15,077 pulse rows before passing all three
+reconstruction workflows.
 
 ## Reconstruction workflows
 
@@ -350,40 +358,76 @@ checksums.
 All three unified reconstruction workflows passed PACE validation with the same
 SQLite database, `Greco_0610_Run00142709.db`.
 
-Madison validation currently stands at:
+Madison validation stands at:
 
 | Workflow / component | Status |
 | --- | --- |
-| I3 -> SQLite conversion | Passed |
-| Reconstruction micromamba environment | Passed |
-| Condor GPU allocation | Passed |
-| PyTorch CUDA computation | Passed |
-| Energy model load | Passed |
-| Track/cascade model load | Passed |
-| Direction/vertex model load | Passed |
-| Energy reconstruction on converted Madison DB | Passed |
-| Track/cascade reconstruction in a non-interactive Condor job | Passed |
-| Direction/vertex reconstruction in a non-interactive Condor job | Passed |
-| Energy reconstruction in a non-interactive Condor job | Passed |
-| Clean reconstruction environment recreation from Git definition | Passed |
-| All three model loads in the clean reconstruction environment | Passed |
-| Clean-environment Energy inference on a legacy CPU Condor worker | Passed |
+| Shared conversion runtime access and import preflight | Passed |
+| Parameterized user-facing conversion submit layer | Passed |
+| I3 + GCD -> SQLite in a non-interactive Condor job | Passed |
+| Converted SQLite truth/pulse event consistency | Passed |
+| Reconstruction micromamba environment recreation from Git | Passed |
+| Condor GPU allocation and CUDA computation | Passed |
+| Energy, Track/Cascade, and Direction/Vertex model loads | Passed |
+| Energy reconstruction in a non-interactive Condor GPU job | Passed |
+| Track/Cascade reconstruction in a non-interactive Condor GPU job | Passed |
+| Direction/Vertex reconstruction in a non-interactive Condor GPU job | Passed |
+| Clean-environment Energy inference on a legacy CPU worker | Passed |
+
+## End-to-end user-path validation
+
+The user-facing workflow was repeated from the repository branch on Madison on
+2026-08-14/15 using the parameterized conversion submit layer and the clean
+reconstruction environment.
+
+Conversion cluster `29550249` processed:
+
+```text
+GCD:
+  /data/exp/IceCube/2026/internal-system/sps-gcd/0414/
+  PFGCD_Run00142433_Subrun00000000.flat.tar
+
+I3:
+  /data/user/mlarson/icetray/scripts/upgrade_lid/output/
+  Greco_0414_Run00142433.i3.zst
+```
+
+The resulting database passed:
+
+```text
+truth:                     443 rows, 443 events
+SplitRTCleanedInIcePulses: 15077 rows, 443 events
+```
+
+That newly generated database was then used directly by three concurrent
+non-interactive GPU jobs:
+
+| Workflow | Cluster | Result |
+| --- | ---: | --- |
+| Energy | `29550452` | Passed |
+| Track/Cascade | `29550453` | Passed |
+| Direction/Vertex | `29550456` | Passed |
+
+All three produced the expected CSV files without changing the baseline
+conversion scripts or the reconstruction entry points.
 
 ## Completion status
 
-The complete Madison/HTCondor data path has passed:
+The complete Madison/HTCondor user path has passed:
 
 ```text
-I3 -> SQLite -> Energy / TC / DV
+clean checkout
+    -> shared conversion runtime preflight
+    -> parameterized I3/GCD conversion
+    -> SQLite schema/event validation
+    -> Git-recreated reconstruction environment
+    -> Energy / TC / DV Condor GPU jobs
+    -> validated CSV outputs
 ```
 
-Energy, Track/Cascade, and Direction/Vertex each produced validated CSV output
-from the converted Madison database in non-interactive Condor GPU jobs. The
-Git-managed reconstruction environment was recreated independently, all three
-serialized models loaded successfully, and Energy inference passed on a legacy
-CPU worker with the compatibility Polars build.
+The two-environment boundary remains intentional. Conversion uses the complete
+shared Madison IceTray/Python 3.12 runtime. Reconstruction uses the user-owned,
+Git-managed micromamba Python 3.8 / PyTorch 2.2 + CUDA 11.8 environment.
 
-The Madison deployment and reproducibility gates are complete. The verified
-integration was merged into `main` with its linear commit history preserved.
 Operational onboarding is maintained in
 `docs/madison_condor_quickstart.md`.
