@@ -126,3 +126,38 @@ class JointLabel(Label):
 
         return joint_labels
 
+class Track(Label):
+    """Class for producing NuMuCC label.
+
+    Label is set to `1` if the event is a NuMu CC event, else `0`.
+    """
+
+    def __init__(
+        self,
+        key: str = "track",
+        pid_key: str = "pid",
+        interaction_key: str = "interaction_type",
+    ):
+        """Construct `Track` label.
+
+        Args:
+            key: The name of the field in `Data` where the label will be
+                stored. That is, `graph[key] = label`.
+            pid_key: The name of the pre-existing key in `graph` that will
+                be used to access the pdg encoding, used when calculating
+                the direction.
+            interaction_key: The name of the pre-existing key in `graph` that
+                will be used to access the interaction type (1 denoting CC),
+                used when calculating the direction.
+        """
+        self._pid_key = pid_key
+        self._int_key = interaction_key
+
+        # Base class constructor
+        super().__init__(key=key)
+
+    def __call__(self, graph: Data) -> torch.tensor:
+        """Compute label for `graph`."""
+        is_numu = torch.abs(graph[self._pid_key]) == 14
+        is_cc = graph[self._int_key] == 1
+        return (is_numu & is_cc).type(torch.int)
